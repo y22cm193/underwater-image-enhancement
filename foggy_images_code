@@ -1,0 +1,69 @@
+import zipfile
+import os
+
+zip_path = "/content/foggy_images-20260219T105708Z-1-001.zip"
+extract_path = "/content/foggy_images"
+
+os.makedirs(extract_path, exist_ok=True)
+
+with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+    zip_ref.extractall(extract_path)
+
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+def compute_rgb_hist(image):
+    hist_data = []
+    for i in range(3):  # B, G, R
+        hist = cv2.calcHist([image], [i], None, [256], [0, 256])
+        hist_data.append(hist)
+    return hist_data
+
+input_folder = extract_path
+
+# Get all image files (including subfolders)
+image_files = []
+for root, dirs, files in os.walk(input_folder):
+    for f in files:
+        if f.lower().endswith((".jpg", ".png", ".jpeg")):
+            image_files.append(os.path.join(root, f))
+
+print(f"Total images found: {len(image_files)}")
+
+# ============================================
+# 3️⃣ Display images + histograms
+# ============================================
+batch = 3
+
+for i in range(0, len(image_files), batch):
+    batch_files = image_files[i:i+batch]
+
+    fig, axes = plt.subplots(len(batch_files), 2, figsize=(10, 4 * len(batch_files)))
+
+    if len(batch_files) == 1:
+        axes = np.expand_dims(axes, axis=0)
+
+    for idx, img_path in enumerate(batch_files):
+        image = cv2.imread(img_path)
+
+        if image is None:
+            continue
+
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        axes[idx][0].imshow(image_rgb)
+        axes[idx][0].axis('off')
+        axes[idx][0].set_title(f"Image: {os.path.basename(img_path)}")
+
+        hist_data = compute_rgb_hist(image)
+
+        for j, color in enumerate(('b', 'g', 'r')):
+            axes[idx][1].plot(hist_data[j], color=color, label=f"{color.upper()}")
+
+        axes[idx][1].set_xlim([0, 256])
+        axes[idx][1].legend()
+        axes[idx][1].set_title("RGB Histogram")
+
+    plt.tight_layout()
+    plt.show()
